@@ -1,13 +1,12 @@
-# Szakdolgozat
-Intervalluma, aritmetika túlbecslésének vizsgálata a mesterséges inteligencia igazolásában
+# Szakdolgozat feladatok
 
-
-
-feladat: -létrehozni egy neuron hálózatot 
-        - MNIST-t hozzádani
-        - Trainelni a hálózatot
-        - elvégezni intervallumi aritmetikai feladatokat
-        - teszteket
-        - kiértékelés nagyobb hálózatokon
-        - Számot mutasson
-        - w(Fx-fx) képlet alkalmazása
+| Kész | Feladat |
+|------|--------|
+| ☐ | Neuronhálózat létrehozása |
+| ☐ | MNIST adatbázis hozzáadása |
+| ☐ | A hálózat betanítása (training) |
+| ☐ | Intervallum-aritmetikai számítások elvégzése |
+| ☐ | Tesztek készítése és futtatása |
+| ☐ | Kiértékelés nagyobb hálózatokon |
+| ☐ | Szám felismerés megvalósítása |
+| ☐ | w(F(x) − f(x)) képlet alkalmazása |
