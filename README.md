@@ -7,6 +7,6 @@
 | ✓ | A hálózat betanítása (training) |
 | ✓ | Intervallum-aritmetikai számítások elvégzése |
 | ✓ | Tesztek készítése és futtatása |
-| ☐ | Kiértékelés nagyobb hálózatokon |
-| ☐ | Szám felismerés megvalósítása |
+| ✓ | Szám felismerés megvalósítása |
 | ☐ | w(F(x) − f(x)) képlet alkalmazása |
+| ☐ | Kiértékelés nagyobb hálózatokon |

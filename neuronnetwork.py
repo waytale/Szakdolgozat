@@ -3,11 +3,13 @@ from tkinter import messagebox, scrolledtext
 import subprocess
 import sys
 from pathlib import Path
+import random
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+from PIL import Image, ImageTk
 
 
 class SimpleMLP(nn.Module):
@@ -105,6 +107,39 @@ def build_test_report():
         "Last validation: 6 tests passed",
     ]
     return "\n".join(report_lines)
+
+
+def build_recognition_report(model, sample_image, sample_label):
+    model.eval()
+    flattened = sample_image.view(1, -1)
+
+    with torch.no_grad():
+        logits = model(flattened)
+        probabilities = torch.softmax(logits, dim=1)
+        confidence, predicted = torch.max(probabilities, 1)
+
+    report_lines = [
+        "Digit recognition info:",
+        f"Actual label: {sample_label}",
+        f"Predicted label: {predicted.item()}",
+        f"Confidence: {confidence.item() * 100:.2f}%",
+        f"Prediction vector: {probabilities.squeeze().tolist()}",
+    ]
+    return "\n".join(report_lines)
+
+
+def get_random_sample(dataset_source):
+    sample_index = random.randrange(len(dataset_source))
+    sample_image, sample_label = dataset_source[sample_index]
+    return sample_index, sample_image, sample_label
+
+
+def build_digit_preview(sample_image, scale=10):
+    image_array = (sample_image.squeeze().detach().cpu().numpy() * 255).astype("uint8")
+    image = Image.fromarray(image_array, mode="L")
+    size = (image.width * scale, image.height * scale)
+    image = image.resize(size, Image.Resampling.NEAREST)
+    return ImageTk.PhotoImage(image)
 
 
 def evaluate_model(model, loader):
@@ -205,6 +240,9 @@ class NeuronNetworkApp:
         self.interval_button = tk.Button(button_row, text="Interval arithmetic", command=self.show_interval_info)
         self.interval_button.pack(side="left", padx=(8, 0))
 
+        self.recognition_button = tk.Button(button_row, text="Recognize digit", command=self.show_recognition_info)
+        self.recognition_button.pack(side="left", padx=(8, 0))
+
         self.tests_button = tk.Button(button_row, text="Show tests", command=self.show_test_info)
         self.tests_button.pack(side="left", padx=(8, 0))
 
@@ -216,6 +254,27 @@ class NeuronNetworkApp:
 
         self.output = scrolledtext.ScrolledText(self.root, wrap="word", height=22)
         self.output.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+
+        preview_row = tk.Frame(self.root)
+        preview_row.pack(fill="x", padx=16, pady=(0, 8))
+
+        preview_label_frame = tk.Frame(preview_row)
+        preview_label_frame.pack(side="left")
+
+        self.preview_title = tk.Label(preview_label_frame, text="Digit preview", anchor="w")
+        self.preview_title.pack(anchor="w")
+
+        self.preview_label = tk.Label(
+            preview_label_frame,
+            text="Press Recognize digit to show an MNIST sample.",
+            justify="left",
+            anchor="w",
+        )
+        self.preview_label.pack(anchor="w", pady=(4, 0))
+
+        self.preview_image_label = tk.Label(preview_row, bd=1, relief="solid")
+        self.preview_image_label.pack(side="right")
+        self.preview_image = None
 
         self.root.after(100, self.show_welcome)
 
@@ -288,6 +347,21 @@ class NeuronNetworkApp:
             messagebox.showerror("Interval arithmetic error", str(exc), parent=self.root)
             self.set_status("Interval arithmetic failed.")
 
+    def show_recognition_info(self):
+        try:
+            self.set_status("Loading sample for digit recognition...")
+            _, test_ds, _, _ = dataset()
+            sample_index, sample_image, sample_label = get_random_sample(test_ds)
+            preview_image = build_digit_preview(sample_image)
+            self.preview_image = preview_image
+            self.preview_image_label.config(image=preview_image)
+            self.preview_label.config(text=f"Showing sample #{sample_index}: {sample_label}")
+            self.write_output(build_recognition_report(self.model, sample_image, sample_label), clear=True)
+            self.set_status("Digit recognition shown.")
+        except Exception as exc:
+            messagebox.showerror("Digit recognition error", str(exc), parent=self.root)
+            self.set_status("Digit recognition failed.")
+
     def show_test_info(self):
         self.set_status("Showing test info...")
         self.write_output(build_test_report(), clear=True)
@@ -324,6 +398,8 @@ class NeuronNetworkApp:
                 build_dataset_report(train_ds, test_ds, train_loader, test_loader),
                 "",
                 build_interval_report(self.model, train_ds[0][0]),
+                "",
+                build_recognition_report(self.model, test_ds[0][0], test_ds[0][1]),
                 "",
                 build_test_report(),
             ]
