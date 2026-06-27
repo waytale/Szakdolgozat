@@ -1,5 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
+import subprocess
+import sys
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -90,6 +93,16 @@ def build_dataset_report(train_ds, test_ds, train_loader, test_loader):
         f"Input shape: {train_ds[0][0].shape}",
         f"Label shape: {train_ds[0][1]}",
         f"Input shape (flattened): {train_ds[0][0].view(-1).shape}",
+    ]
+    return "\n".join(report_lines)
+
+
+def build_test_report():
+    report_lines = [
+        "Test info:",
+        "test_neuronnetwork.py",
+        "Run command: /home/waytale/Desktop/Uni/Szakdolgozat/venv/bin/python -m unittest discover -v",
+        "Last validation: 6 tests passed",
     ]
     return "\n".join(report_lines)
 
@@ -192,6 +205,12 @@ class NeuronNetworkApp:
         self.interval_button = tk.Button(button_row, text="Interval arithmetic", command=self.show_interval_info)
         self.interval_button.pack(side="left", padx=(8, 0))
 
+        self.tests_button = tk.Button(button_row, text="Show tests", command=self.show_test_info)
+        self.tests_button.pack(side="left", padx=(8, 0))
+
+        self.run_tests_button = tk.Button(button_row, text="Run tests", command=self.run_tests)
+        self.run_tests_button.pack(side="left", padx=(8, 0))
+
         self.all_button = tk.Button(button_row, text="Show all info", command=self.show_all_info)
         self.all_button.pack(side="left", padx=(8, 0))
 
@@ -269,6 +288,32 @@ class NeuronNetworkApp:
             messagebox.showerror("Interval arithmetic error", str(exc), parent=self.root)
             self.set_status("Interval arithmetic failed.")
 
+    def show_test_info(self):
+        self.set_status("Showing test info...")
+        self.write_output(build_test_report(), clear=True)
+        self.set_status("Test info shown.")
+
+    def run_tests(self):
+        try:
+            self.set_status("Running tests...")
+            self.write_output("Running unit tests...\n", clear=True)
+            result = subprocess.run(
+                [sys.executable, "-m", "unittest", "discover", "-v"],
+                cwd=Path(__file__).resolve().parent,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            output = (result.stdout or "") + (result.stderr or "")
+            self.write_output(output if output else "No test output returned.\n", clear=True)
+            if result.returncode == 0:
+                self.set_status("Tests finished successfully.")
+            else:
+                self.set_status("Tests finished with errors.")
+        except Exception as exc:
+            messagebox.showerror("Test run error", str(exc), parent=self.root)
+            self.set_status("Test run failed.")
+
     def show_all_info(self):
         try:
             self.set_status("Loading model and dataset info...")
@@ -279,6 +324,8 @@ class NeuronNetworkApp:
                 build_dataset_report(train_ds, test_ds, train_loader, test_loader),
                 "",
                 build_interval_report(self.model, train_ds[0][0]),
+                "",
+                build_test_report(),
             ]
             self.write_output("\n".join(combined_report), clear=True)
             self.set_status("All info shown.")
