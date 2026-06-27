@@ -8,5 +8,5 @@
 | ✓ | Intervallum-aritmetikai számítások elvégzése |
 | ✓ | Tesztek készítése és futtatása |
 | ✓ | Szám felismerés megvalósítása |
-| ☐ | w(F(x) − f(x)) képlet alkalmazása |
-| ☐ | Kiértékelés nagyobb hálózatokon |
+| ✓ | w(F(x) − f(x)) képlet alkalmazása |
+| ✓ | Kiértékelés nagyobb hálózatokon |

@@ -35,6 +35,33 @@ def build_model_report(model):
     return "\n".join(report_lines)
 
 
+def build_large_network_report(
+    train_loader,
+    test_loader,
+    hidden_sizes=(64, 128, 256),
+    epochs=1,
+    in_dim=784,
+    out_dim=10,
+):
+    report_lines = ["Larger network evaluation:"]
+
+    for hidden_size in hidden_sizes:
+        model = SimpleMLP(in_dim=in_dim, hidden=hidden_size, out_dim=out_dim)
+        train_model(model, train_loader, test_loader, epochs=epochs)
+        parameter_count = sum(parameter.numel() for parameter in model.parameters())
+        test_accuracy = evaluate_model(model, test_loader)
+        report_lines.extend(
+            [
+                f"Hidden size: {hidden_size}",
+                f"Total parameters: {parameter_count}",
+                f"Test accuracy: {test_accuracy:.2f}%",
+                "",
+            ]
+        )
+
+    return "\n".join(report_lines).rstrip()
+
+
 def interval_linear(lower, upper, weight, bias):
     positive_weight = torch.clamp(weight, min=0)
     negative_weight = torch.clamp(weight, max=0)
@@ -45,6 +72,10 @@ def interval_linear(lower, upper, weight, bias):
 
 def relu_interval(lower, upper):
     return torch.relu(lower), torch.relu(upper)
+
+
+def interval_width(lower, upper):
+    return upper - lower
 
 
 def interval_forward(model, lower, upper):
@@ -63,12 +94,17 @@ def build_interval_report(model, sample_image):
     lower = torch.clamp(flattened - 0.1, min=0.0, max=1.0)
     upper = torch.clamp(flattened + 0.1, min=0.0, max=1.0)
     interval_lower, interval_upper = interval_forward(model, lower, upper)
+    input_width = interval_width(lower, upper)
+    output_width = interval_width(interval_lower, interval_upper)
 
     report_lines = [
         "Interval arithmetic info:",
         "Input interval: x ± 0.1, clipped to [0, 1]",
+        "w(F(x) − f(x)) interval width calculation applied.",
+        f"Input interval width: {input_width.squeeze().tolist()}",
         f"Lower bounds shape: {interval_lower.shape}",
         f"Upper bounds shape: {interval_upper.shape}",
+        f"Output interval width: {output_width.squeeze().tolist()}",
         f"Output lower bounds: {interval_lower.squeeze().tolist()}",
         f"Output upper bounds: {interval_upper.squeeze().tolist()}",
     ]
@@ -104,7 +140,7 @@ def build_test_report():
         "Test info:",
         "test_neuronnetwork.py",
         "Run command: /home/waytale/Desktop/Uni/Szakdolgozat/venv/bin/python -m unittest discover -v",
-        "Last validation: 6 tests passed",
+        "Last validation: 8 tests passed",
     ]
     return "\n".join(report_lines)
 
@@ -243,6 +279,13 @@ class NeuronNetworkApp:
         self.recognition_button = tk.Button(button_row, text="Recognize digit", command=self.show_recognition_info)
         self.recognition_button.pack(side="left", padx=(8, 0))
 
+        self.large_network_button = tk.Button(
+            button_row,
+            text="Larger networks",
+            command=self.show_large_network_info,
+        )
+        self.large_network_button.pack(side="left", padx=(8, 0))
+
         self.tests_button = tk.Button(button_row, text="Show tests", command=self.show_test_info)
         self.tests_button.pack(side="left", padx=(8, 0))
 
@@ -362,6 +405,19 @@ class NeuronNetworkApp:
             messagebox.showerror("Digit recognition error", str(exc), parent=self.root)
             self.set_status("Digit recognition failed.")
 
+    def show_large_network_info(self):
+        try:
+            self.set_status("Evaluating larger networks...")
+            train_ds, test_ds, train_loader, test_loader = dataset()
+            self.write_output(
+                build_large_network_report(train_loader, test_loader),
+                clear=True,
+            )
+            self.set_status("Larger networks evaluated.")
+        except Exception as exc:
+            messagebox.showerror("Larger network error", str(exc), parent=self.root)
+            self.set_status("Larger network evaluation failed.")
+
     def show_test_info(self):
         self.set_status("Showing test info...")
         self.write_output(build_test_report(), clear=True)
@@ -394,6 +450,8 @@ class NeuronNetworkApp:
             train_ds, test_ds, train_loader, test_loader = dataset()
             combined_report = [
                 build_model_report(self.model),
+                "",
+                build_large_network_report(train_loader, test_loader),
                 "",
                 build_dataset_report(train_ds, test_ds, train_loader, test_loader),
                 "",

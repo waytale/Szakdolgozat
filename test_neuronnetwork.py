@@ -6,10 +6,12 @@ from torch.utils.data import DataLoader, TensorDataset
 from neuronnetwork import (
     SimpleMLP,
     build_dataset_report,
+    build_large_network_report,
     build_model_report,
     evaluate_model,
     interval_forward,
     interval_linear,
+    interval_width,
     relu_interval,
 )
 
@@ -22,6 +24,19 @@ class NeuronNetworkTests(unittest.TestCase):
 
         self.assertIn("SimpleMLP model info:", report)
         self.assertIn("Total parameters: 35", report)
+
+    def test_build_large_network_report_lists_each_hidden_size(self):
+        images = torch.zeros((4, 1, 2, 2))
+        labels = torch.tensor([0, 1, 0, 1])
+        loader = DataLoader(TensorDataset(images, labels), batch_size=2)
+
+        report = build_large_network_report(loader, loader, hidden_sizes=(3, 5), epochs=0, in_dim=4, out_dim=2)
+
+        self.assertIn("Larger network evaluation:", report)
+        self.assertIn("Hidden size: 3", report)
+        self.assertIn("Hidden size: 5", report)
+        self.assertIn("Total parameters: 35", report)
+        self.assertIn("Total parameters: 67", report)
 
     def test_interval_linear_computes_expected_bounds(self):
         lower = torch.tensor([[1.0, 2.0]])
@@ -45,6 +60,14 @@ class NeuronNetworkTests(unittest.TestCase):
 
         self.assertTrue(torch.equal(relu_lower, torch.tensor([[0.0, 1.0]])))
         self.assertTrue(torch.equal(relu_upper, torch.tensor([[3.0, 4.0]])))
+
+    def test_interval_width_uses_upper_minus_lower(self):
+        lower = torch.tensor([[1.0, 2.5]])
+        upper = torch.tensor([[4.0, 5.0]])
+
+        width = interval_width(lower, upper)
+
+        self.assertTrue(torch.equal(width, torch.tensor([[3.0, 2.5]])))
 
     def test_interval_forward_preserves_shape_order(self):
         model = SimpleMLP(in_dim=4, hidden=3, out_dim=2)
